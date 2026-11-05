@@ -1,0 +1,9 @@
+{
+  "appId": "com.example.capprobe",
+  "appName": "CapProbe",
+  "webDir": "public",
+  "ios": {
+    "webContentsDebuggingEnabled": true
+  },
+  "packageClassList": ["FilesystemPlugin", "SharePlugin"]
+}

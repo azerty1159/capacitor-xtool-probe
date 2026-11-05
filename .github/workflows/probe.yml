@@ -1,0 +1,106 @@
+name: probe
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sdk:
+    name: SDK ${{ matrix.sdk }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sdk: xcode27
+            runner: xcode-27
+          - sdk: xcode26
+            runner: macos-26
+    steps:
+      - name: Xcode
+        run: |
+          XCODE_APP="$(dirname "$(dirname "$(xcode-select -p)")")"
+          echo "XCODE_APP=$XCODE_APP" >> "$GITHUB_ENV"
+          echo "$XCODE_APP"
+          xcodebuild -version
+      - name: Instalar xtool 1.24.0 (mesma versao do job Linux)
+        run: |
+          curl -fL https://github.com/xtool-org/xtool/releases/download/1.24.0/xtool.app.zip -o /tmp/xtool.app.zip
+          ditto -x -k /tmp/xtool.app.zip /tmp/xtool
+          echo "/tmp/xtool/xtool.app/Contents/Resources/bin" >> "$GITHUB_PATH"
+          /tmp/xtool/xtool.app/Contents/Resources/bin/xtool --version
+      - name: xtool sdk build
+        run: |
+          xtool sdk build "$XCODE_APP" out --arch x86_64
+          tar -C out -czf darwin-${{ matrix.sdk }}.tgz darwin.xtoolsdk
+          ls -la darwin-${{ matrix.sdk }}.tgz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: darwin-${{ matrix.sdk }}
+          path: darwin-${{ matrix.sdk }}.tgz
+          retention-days: 3
+
+  build:
+    name: T${{ matrix.t }} Swift ${{ matrix.swift }} + SDK ${{ matrix.sdk }}
+    needs: sdk
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    container: swift:${{ matrix.swift }}-noble
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - t: 1
+            swift: "6.4"
+            sdk: xcode27
+          - t: 3
+            swift: "6.3"
+            sdk: xcode26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: darwin-${{ matrix.sdk }}
+      - name: Instalar xtool 1.24.0 (AppImage extraido, sem FUSE)
+        run: |
+          command -v curl || (apt-get update -qq && apt-get install -y -qq curl)
+          curl -fL https://github.com/xtool-org/xtool/releases/download/1.24.0/xtool-x86_64.AppImage -o /tmp/xtool.AppImage
+          chmod +x /tmp/xtool.AppImage
+          cd /opt && /tmp/xtool.AppImage --appimage-extract > /dev/null
+          ln -s /opt/squashfs-root/AppRun /usr/local/bin/xtool
+          xtool --version
+          swift --version
+      - name: Instalar SDK
+        run: |
+          tar -xzf darwin-${{ matrix.sdk }}.tgz
+          xtool sdk install darwin.xtoolsdk
+          swift sdk list
+      - name: T${{ matrix.t }} - xtool dev build
+        run: xtool dev build 2>&1 | tee build.log
+      - name: T2 - inspecionar .app
+        run: sh ci/check-app.sh xtool/CapProbe.app
+      - name: ipa sem assinatura (para o T4)
+        run: xtool dev build --ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CapProbe-swift${{ matrix.swift }}-ipa
+          path: xtool/CapProbe.ipa
+          retention-days: 14
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: log-swift${{ matrix.swift }}
+          path: build.log

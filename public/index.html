@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CapProbe</title>
+</head>
+<body>
+<h1>CapProbe</h1>
+<pre id="out">carregando...</pre>
+<script>
+  const C = window.Capacitor;
+  const r = C
+    ? `plataforma=${C.getPlatform()} Filesystem=${C.isPluginAvailable('Filesystem')} Share=${C.isPluginAvailable('Share')}`
+    : 'sem ponte do Capacitor';
+  document.getElementById('out').textContent = r;
+  document.title = r;
+</script>
+</body>
+</html>

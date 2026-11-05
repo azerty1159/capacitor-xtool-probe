@@ -1,0 +1,10 @@
+{
+  "name": "capacitor-xtool-probe",
+  "private": true,
+  "description": "Probe: does xtool (Linux) build a Capacitor 8 iOS app?",
+  "dependencies": {
+    "@capacitor/core": "8.4.1",
+    "@capacitor/filesystem": "8.1.2",
+    "@capacitor/share": "8.0.1"
+  }
+}

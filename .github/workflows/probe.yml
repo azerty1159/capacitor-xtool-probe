@@ -76,7 +76,8 @@ jobs:
           name: darwin-${{ matrix.sdk }}
       - name: Instalar xtool 1.24.0 (AppImage extraido, sem FUSE)
         run: |
-          command -v curl || (apt-get update -qq && apt-get install -y -qq curl)
+          # zip: xtool dev build --ipa shells out to it (ProcessZIPCompressor)
+          apt-get update -qq && apt-get install -y -qq curl zip
           curl -fL https://github.com/xtool-org/xtool/releases/download/1.24.0/xtool-x86_64.AppImage -o /tmp/xtool.AppImage
           chmod +x /tmp/xtool.AppImage
           cd /opt && /tmp/xtool.AppImage --appimage-extract > /dev/null
